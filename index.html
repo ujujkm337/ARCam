@@ -1,55 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Debugger</title>
+    <title>AR Линейка на Android</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        body { margin: 0; background: #111; color: #0f0; font-family: monospace; padding: 10px; }
-        #log { font-size: 10px; border: 1px solid #333; height: 100px; overflow: scroll; margin-bottom: 10px; }
-        model-viewer { width: 100%; height: 60vh; border: 1px solid #555; }
+        body { 
+            margin: 0; 
+            background: #000; 
+            color: #00ff00; 
+            font-family: 'Courier New', monospace; 
+            overflow: hidden; 
+        }
+        #ui-panel {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            z-index: 100;
+            text-align: center;
+            border-bottom: 2px solid #333;
+        }
+        .distance-val {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #007bff;
+        }
+        model-viewer {
+            width: 100vw;
+            height: 100vh;
+            background-color: #111;
+        }
+        #ar-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #status-log {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="log">Лог инициализации...<br></div>
-    
-    <model-viewer id="ctrl"
-        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-        ar ar-modes="webxr scene-viewer"
-        camera-controls
-        alt="Тестовая модель">
-        <button slot="ar-button" id="start-btn" style="width:100%; padding:20px; background:#007bff; color:white; border:none; font-weight:bold;">
-            ЗАПУСТИТЬ AR СЕССИЮ
+    <div id="ui-panel">
+        <div>ДИСТАНЦИЯ: <span id="distance" class="distance-val">0.00</span> см</div>
+        <div id="status-log">Ожидание входа в AR...</div>
+    </div>
+
+    <model-viewer 
+        id="ar-ruler" 
+        src="https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/Box/glTF/Box.gltf"
+        ar 
+        ar-modes="webxr scene-viewer" 
+        camera-controls 
+        ar-scale="fixed"
+        shadow-intensity="1"
+        alt="AR Ruler">
+        
+        <button slot="ar-button" id="ar-button">
+            🚀 ЗАПУСТИТЬ КАМЕРУ (AR)
         </button>
+
     </model-viewer>
 
     <script>
-        const log = document.getElementById('log');
-        const btn = document.getElementById('start-btn');
+        const modelViewer = document.querySelector('#ar-ruler');
+        const distanceDisplay = document.querySelector('#distance');
+        const statusLog = document.querySelector('#status-log');
+        
+        let points = [];
 
-        function print(msg) { log.innerHTML += "> " + msg + "<br>"; }
-
-        // Проверка поддержки WebXR при загрузке
-        window.addEventListener('load', () => {
-            if (navigator.xr) {
-                print("WebXR обнаружен в навигаторе.");
-                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-                    print(supported ? "AR поддерживается!" : "AR НЕ поддерживается устройством.");
-                });
+        // Отслеживаем статус AR
+        modelViewer.addEventListener('ar-status', (event) => {
+            if (event.detail.status === 'session-started') {
+                statusLog.innerText = "АР активен. Тапай по предметам!";
+                statusLog.style.color = "#00ff00";
             } else {
-                print("Ошибка: navigator.xr не найден (нужен HTTPS).");
+                statusLog.innerText = "АР завершен или не активен.";
+                statusLog.style.color = "#ff4444";
             }
         });
 
-        btn.addEventListener('click', () => {
-            print("Нажата кнопка. Попытка входа в AR...");
+        // Логика клика
+        modelViewer.addEventListener('click', (event) => {
+            // Проверяем, что мы именно в AR режиме
+            if (!modelViewer.canActivateAR || modelViewer.getAttribute('ar-status') !== 'session-started') {
+                console.log("Клик вне AR игнорируется");
+                return;
+            }
+
+            // Получаем координаты точки в 3D пространстве из 2D клика по экрану
+            const hit = modelViewer.positionAndNormalFromPoint(event.clientX, event.clientY);
+            
+            if (hit) {
+                points.push(hit.position);
+                
+                if (points.length === 1) {
+                    statusLog.innerText = "Первая точка поставлена. Жду вторую...";
+                    distanceDisplay.innerText = "---";
+                }
+
+                if (points.length === 2) {
+                    // Формула расстояния между двумя точками в 3D (x, y, z)
+                    const d = Math.sqrt(
+                        Math.pow(points[1].x - points[0].x, 2) +
+                        Math.pow(points[1].y - points[0].y, 2) +
+                        Math.pow(points[1].z - points[0].z, 2)
+                    );
+                    
+                    // Выводим результат в см
+                    const cm = (d * 100).toFixed(2);
+                    distanceDisplay.innerText = cm;
+                    statusLog.innerText = `Замер выполнен: ${cm} см. Тапай снова!`;
+                    
+                    // Сбрасываем точки для нового замера
+                    points = [];
+                }
+            } else {
+                statusLog.innerText = "Не удалось определить поверхность. Попробуй еще раз.";
+            }
         });
 
-        // Отлавливаем ошибки самого компонента
-        document.querySelector('#ctrl').addEventListener('error', (e) => {
-            print("Ошибка модели: " + e.detail.type);
+        // Обработка ошибок
+        modelViewer.addEventListener('error', (e) => {
+            statusLog.innerText = "Ошибка: " + e.detail.type;
         });
     </script>
 </body>
