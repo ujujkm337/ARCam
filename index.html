@@ -1,74 +1,55 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Android AR Ruler</title>
+    <title>AR Debugger</title>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        body { margin: 0; background: #121212; color: white; font-family: sans-serif; overflow: hidden; }
-        model-viewer { width: 100vw; height: 100vh; }
-        .info-panel {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 12px;
-            z-index: 10; text-align: center; border: 1px solid #333;
-        }
-        #dist { font-weight: bold; color: #00ff00; font-size: 1.2em; }
-        .instructions { font-size: 0.8em; margin-top: 5px; color: #ccc; }
+        body { margin: 0; background: #111; color: #0f0; font-family: monospace; padding: 10px; }
+        #log { font-size: 10px; border: 1px solid #333; height: 100px; overflow: scroll; margin-bottom: 10px; }
+        model-viewer { width: 100%; height: 60vh; border: 1px solid #555; }
     </style>
 </head>
 <body>
 
-    <div class="info-panel">
-        <div>Расстояние: <span id="dist">0</span> см</div>
-        <div class="instructions">Тапни по полу в AR, чтобы поставить точки</div>
-    </div>
-
-    <model-viewer 
-        id="ruler" 
-        ar 
-        ar-modes="webxr scene-viewer" 
-        camera-controls 
-        src="https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/Box/glTF/Box.gltf"
-        alt="AR Линейка"
-        style="--poster-color: transparent;">
-        
-        <button slot="ar-button" style="position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); padding: 15px 30px; background: #4285f4; color: white; border: none; border-radius: 30px; font-weight: bold;">
-            ОТКРЫТЬ ЛИНЕЙКУ
+    <div id="log">Лог инициализации...<br></div>
+    
+    <model-viewer id="ctrl"
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        ar ar-modes="webxr scene-viewer"
+        camera-controls
+        alt="Тестовая модель">
+        <button slot="ar-button" id="start-btn" style="width:100%; padding:20px; background:#007bff; color:white; border:none; font-weight:bold;">
+            ЗАПУСТИТЬ AR СЕССИЮ
         </button>
-
     </model-viewer>
 
     <script>
-        const modelViewer = document.querySelector('#ruler');
-        const distDisplay = document.querySelector('#dist');
-        let points = [];
+        const log = document.getElementById('log');
+        const btn = document.getElementById('start-btn');
 
-        modelViewer.addEventListener('click', (event) => {
-            // Определяем точку в 3D пространстве, куда нажал пользователь
-            const hit = modelViewer.positionAndNormalFromPoint(event.clientX, event.clientY);
-            
-            if (hit) {
-                points.push(hit.position);
-                console.log("Точка поставлена:", hit.position);
+        function print(msg) { log.innerHTML += "> " + msg + "<br>"; }
 
-                if (points.length === 2) {
-                    // Вычисляем расстояние между двумя векторами (x, y, z)
-                    const d = Math.sqrt(
-                        Math.pow(points[0].x - points[1].x, 2) +
-                        Math.pow(points[0].y - points[1].y, 2) +
-                        Math.pow(points[0].z - points[1].z, 2)
-                    );
-                    
-                    // Переводим в сантиметры
-                    distDisplay.innerText = (d * 100).toFixed(2);
-                    
-                    // Очищаем массив, чтобы можно было мерить заново
-                    points = [];
-                } else {
-                    distDisplay.innerText = "Ставим вторую...";
-                }
+        // Проверка поддержки WebXR при загрузке
+        window.addEventListener('load', () => {
+            if (navigator.xr) {
+                print("WebXR обнаружен в навигаторе.");
+                navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+                    print(supported ? "AR поддерживается!" : "AR НЕ поддерживается устройством.");
+                });
+            } else {
+                print("Ошибка: navigator.xr не найден (нужен HTTPS).");
             }
+        });
+
+        btn.addEventListener('click', () => {
+            print("Нажата кнопка. Попытка входа в AR...");
+        });
+
+        // Отлавливаем ошибки самого компонента
+        document.querySelector('#ctrl').addEventListener('error', (e) => {
+            print("Ошибка модели: " + e.detail.type);
         });
     </script>
 </body>
