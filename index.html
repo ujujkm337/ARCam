@@ -3,137 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Линейка v2.0</title>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <title>Android AR Ruler (System Mode)</title>
     <style>
         body { 
             margin: 0; 
-            background: #111; 
-            color: #00ff00; 
+            background: #121212; 
+            color: white; 
             font-family: sans-serif; 
-            overflow: hidden; 
-        }
-        #ui-panel {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 15px;
-            z-index: 100;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
             text-align: center;
-            border-bottom: 1px solid #00ff00;
         }
-        .distance-val {
-            font-size: 28px;
+        .card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 80%;
+        }
+        .btn-ar {
+            display: inline-block;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            padding: 20px 40px;
+            border-radius: 50px;
             font-weight: bold;
-            color: #fff;
+            font-size: 18px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
         }
-        model-viewer {
-            width: 100vw;
-            height: 100vh;
-        }
-        #ar-button {
-            background: #00ff00;
-            color: black;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            position: absolute;
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-        }
-        #status-log {
-            font-size: 11px;
-            color: #aaa;
-            margin-top: 5px;
+        .info {
+            color: #888;
+            font-size: 14px;
+            margin-top: 15px;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui-panel">
-        <div>ДИСТАНЦИЯ: <span id="distance" class="distance-val">0.00</span> см</div>
-        <div id="status-log">Инициализация...</div>
+    <div class="card">
+        <h1>AR Линейка</h1>
+        <p>Для Android (через системный Scene Viewer)</p>
+        
+        <a class="btn-ar" href="intent://arvr.google.com/scene-viewer/1.0?file=https://modelviewer.dev/shared-assets/models/Astronaut.glb&mode=ar_only&resizable=false#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;end;">
+            ОТКРЫТЬ КАМЕРУ
+        </a>
+
+        <div class="info">
+            После открытия поводи камерой, чтобы найти пол. <br>
+            Линейка будет доступна в инструментах самого плеера.
+        </div>
     </div>
 
-    <model-viewer 
-        id="ar-ruler" 
-        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-        ar 
-        ar-modes="webxr scene-viewer" 
-        camera-controls 
-        ar-scale="fixed"
-        alt="AR Ruler Tool">
-        
-        <button slot="ar-button" id="ar-button">
-            ВКЛЮЧИТЬ ЛИНЕЙКУ (AR)
-        </button>
-
-    </model-viewer>
-
-    <script>
-        const modelViewer = document.querySelector('#ar-ruler');
-        const distanceDisplay = document.querySelector('#distance');
-        const statusLog = document.querySelector('#status-log');
-        
-        let points = [];
-
-        // Логируем загрузку модели
-        modelViewer.addEventListener('load', () => {
-            statusLog.innerText = "Модель загружена. Нажимай кнопку AR!";
-        });
-
-        // Логируем ошибки
-        modelViewer.addEventListener('error', (e) => {
-            console.error(e);
-            statusLog.innerText = "Ошибка загрузки модели. Проверь интернет.";
-            statusLog.style.color = "red";
-        });
-
-        // Статус AR сессии
-        modelViewer.addEventListener('ar-status', (event) => {
-            if (event.detail.status === 'session-started') {
-                statusLog.innerText = "АР АКТИВЕН. Тапни дважды для замера.";
-                statusLog.style.color = "#00ff00";
-            }
-        });
-
-        // Основная логика измерений
-        modelViewer.addEventListener('click', (event) => {
-            // Координаты попадания луча (raycasting) в AR
-            const hit = modelViewer.positionAndNormalFromPoint(event.clientX, event.clientY);
-            
-            if (hit) {
-                const newPoint = hit.position;
-                points.push(newPoint);
-                
-                if (points.length === 1) {
-                    statusLog.innerText = "Точка 1 поставлена. Выбери вторую.";
-                    distanceDisplay.innerText = "---";
-                }
-
-                if (points.length === 2) {
-                    // Рассчитываем 3D дистанцию
-                    const d = Math.sqrt(
-                        Math.pow(points[1].x - points[0].x, 2) +
-                        Math.pow(points[1].y - points[0].y, 2) +
-                        Math.pow(points[1].z - points[0].z, 2)
-                    );
-                    
-                    const cm = (d * 100).toFixed(2);
-                    distanceDisplay.innerText = cm;
-                    statusLog.innerText = `Расстояние: ${cm} см. Можно мерить снова.`;
-                    
-                    // Очистка для следующего измерения
-                    points = [];
-                }
-            } else {
-                statusLog.innerText = "Поверхность не найдена. Поводи камерой.";
-            }
-        });
-    </script>
 </body>
 </html>
